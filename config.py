@@ -52,3 +52,6 @@ HORARIO_WBR_PREP     = "17:00"
 ZAPI_INSTANCE = os.getenv("ZAPI_INSTANCE", "")
 ZAPI_TOKEN    = os.getenv("ZAPI_TOKEN", "")
 ZAPI_BASE_URL = f"https://api.z-api.io/instances/{ZAPI_INSTANCE}/token/{ZAPI_TOKEN}"
+
+# Segurança dos endpoints internos (GitHub Actions → Render)
+INTERNAL_SECRET = os.getenv("INTERNAL_SECRET", "dev-secret-local")

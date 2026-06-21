@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
-from config import WHATSAPP_TO_MEMBER, MEMBERS, LIST_IDS
+from config import WHATSAPP_TO_MEMBER, MEMBERS, LIST_IDS, INTERNAL_SECRET
 from clickup import criar_relatorio_daily, criar_tarefa, get_todas_tarefas_membro
 from messages import msg_tarefa_criada, msg_erro_entendimento
 from zapi import enviar_mensagem
@@ -144,3 +144,35 @@ async def webhook(request: Request):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# ── Endpoints internos (chamados pelo GitHub Actions) ────────────────────────
+
+def _auth_interna(request: Request) -> bool:
+    token = request.headers.get("Authorization", "")
+    return token == f"Bearer {INTERNAL_SECRET}"
+
+
+@app.post("/internal/job/{job_name}")
+async def run_job_interno(job_name: str, request: Request):
+    if not _auth_interna(request):
+        return JSONResponse({"ok": False}, status_code=401)
+
+    from scheduler import job_manha, job_tarde, job_pre_fechamento, job_fechamento, job_wbr_prep
+    import threading
+
+    jobs = {
+        "manha":           job_manha,
+        "tarde":           job_tarde,
+        "pre-fechamento":  job_pre_fechamento,
+        "fechamento":      job_fechamento,
+        "wbr-prep":        job_wbr_prep,
+    }
+
+    fn = jobs.get(job_name)
+    if not fn:
+        return JSONResponse({"ok": False, "erro": "job desconhecido"}, status_code=404)
+
+    threading.Thread(target=fn, daemon=True).start()
+    log.info(f"Job '{job_name}' disparado via Actions")
+    return JSONResponse({"ok": True, "job": job_name})

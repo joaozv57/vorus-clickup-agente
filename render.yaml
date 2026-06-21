@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: clickup-agente
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: CLICKUP_TOKEN
+        sync: false
+      - key: INTERNAL_SECRET
+        sync: false
+      - key: ZAPI_INSTANCE
+        value: ""
+      - key: ZAPI_TOKEN
+        value: ""

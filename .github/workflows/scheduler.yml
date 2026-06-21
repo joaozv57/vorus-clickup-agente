@@ -1,0 +1,64 @@
+name: Scheduler Vorus
+
+on:
+  schedule:
+    # Todos os horários em UTC. Brasil = UTC-3 no inverno (mai-out).
+    - cron: '0 11 * * 1-5'     # 08:00 BRT — manhã (dias úteis)
+    - cron: '0 17 * * 1-5'     # 14:00 BRT — tarde (dias úteis)
+    - cron: '30 20 * * 1-5'    # 17:30 BRT — pré-fechamento (dias úteis)
+    - cron: '0 21 * * 1-5'     # 18:00 BRT — fechamento (dias úteis)
+    - cron: '0 20 * * 5'       # 17:00 BRT — WBR prep (sextas)
+    # Keep-alive: pinga o Render a cada 14 min nos horários úteis para
+    # impedir que o serviço durma entre o fechamento (18h) e a resposta.
+    - cron: '*/14 11-21 * * 1-5'
+
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Job para disparar manualmente'
+        required: true
+        type: choice
+        options:
+          - manha
+          - tarde
+          - pre-fechamento
+          - fechamento
+          - wbr-prep
+          - ping
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Determinar job pelo cron
+        id: job
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "name=${{ inputs.job }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 11 * * 1-5" ]; then
+            echo "name=manha" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 17 * * 1-5" ]; then
+            echo "name=tarde" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "30 20 * * 1-5" ]; then
+            echo "name=pre-fechamento" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 21 * * 1-5" ]; then
+            echo "name=fechamento" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 20 * * 5" ]; then
+            echo "name=wbr-prep" >> $GITHUB_OUTPUT
+          else
+            echo "name=ping" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Ping keep-alive
+        if: steps.job.outputs.name == 'ping'
+        run: |
+          curl -sf "${{ secrets.RENDER_URL }}/health" || echo "serviço dormindo, acordando..."
+
+      - name: Disparar job
+        if: steps.job.outputs.name != 'ping'
+        run: |
+          curl -sf -X POST \
+            -H "Authorization: Bearer ${{ secrets.INTERNAL_SECRET }}" \
+            "${{ secrets.RENDER_URL }}/internal/job/${{ steps.job.outputs.name }}" \
+            | cat
