@@ -1,30 +1,33 @@
 {
-  "atualizado_em": "21/06/2026 04:35",
+  "atualizado_em": "21/06/2026 05:00",
   "saude_geral": {
-    "pct": 42,
-    "status": "yellow"
+    "pct": 0,
+    "status": "red"
   },
   "por_pessoa": {
     "Victor": {
-      "concluidas_hoje": 1,
-      "pendentes_hoje": 3,
+      "concluidas_hoje": 0,
+      "pendentes_hoje": 0,
       "bloqueadas_hoje": 0,
-      "criadas_semana": 4,
-      "concluidas_semana": 1
+      "criadas_semana": 0,
+      "concluidas_semana": 0,
+      "wip_total": 0
     },
     "Gabriel": {
-      "concluidas_hoje": 2,
-      "pendentes_hoje": 2,
+      "concluidas_hoje": 0,
+      "pendentes_hoje": 0,
       "bloqueadas_hoje": 0,
-      "criadas_semana": 4,
-      "concluidas_semana": 2
+      "criadas_semana": 0,
+      "concluidas_semana": 0,
+      "wip_total": 0
     },
     "Ton": {
-      "concluidas_hoje": 2,
-      "pendentes_hoje": 2,
+      "concluidas_hoje": 0,
+      "pendentes_hoje": 0,
       "bloqueadas_hoje": 0,
-      "criadas_semana": 4,
-      "concluidas_semana": 2
+      "criadas_semana": 0,
+      "concluidas_semana": 0,
+      "wip_total": 0
     }
   },
   "bloqueadas": [],
@@ -45,5 +48,55 @@
       "total": 0,
       "concluidas": 0
     }
+  },
+  "distribuicao": {
+    "concluidas": 5,
+    "a_fazer": 7,
+    "em_andamento": 0,
+    "bloqueadas": 0
+  },
+  "tendencia_semanal": [
+    {
+      "dia": "Seg",
+      "criadas": 0,
+      "concluidas": 0
+    },
+    {
+      "dia": "Ter",
+      "criadas": 0,
+      "concluidas": 0
+    },
+    {
+      "dia": "Qua",
+      "criadas": 0,
+      "concluidas": 0
+    },
+    {
+      "dia": "Qui",
+      "criadas": 0,
+      "concluidas": 0
+    },
+    {
+      "dia": "Sex",
+      "criadas": 0,
+      "concluidas": 0
+    },
+    {
+      "dia": "Sáb",
+      "criadas": 0,
+      "concluidas": 0
+    },
+    {
+      "dia": "Dom",
+      "criadas": 12,
+      "concluidas": 5
+    }
+  ],
+  "alertas": {
+    "entregas_7_dias": 7,
+    "projetos_sem_atualizacao": 0,
+    "bloqueadas_2_dias": 0,
+    "wip_medio": 0.0,
+    "clientes_sem_contato": 0
   }
 }
