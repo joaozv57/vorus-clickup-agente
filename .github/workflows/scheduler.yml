@@ -2,15 +2,12 @@ name: Scheduler Vorus
 
 on:
   schedule:
-    # Todos os horários em UTC. Brasil = UTC-3 no inverno (mai-out).
-    - cron: '0 11 * * 1-5'     # 08:00 BRT — manhã (dias úteis)
-    - cron: '0 17 * * 1-5'     # 14:00 BRT — tarde (dias úteis)
-    - cron: '30 20 * * 1-5'    # 17:30 BRT — pré-fechamento (dias úteis)
-    - cron: '0 21 * * 1-5'     # 18:00 BRT — fechamento (dias úteis)
-    - cron: '0 20 * * 5'       # 17:00 BRT — WBR prep (sextas)
-    # Keep-alive: pinga o Render a cada 14 min nos horários úteis para
-    # impedir que o serviço durma entre o fechamento (18h) e a resposta.
-    - cron: '*/14 11-21 * * 1-5'
+    # Todos os horários em UTC. Brasil = UTC-3 (mai-out).
+    - cron: '0 11 * * 1-5'    # 08:00 BRT — manhã
+    - cron: '0 17 * * 1-5'    # 14:00 BRT — tarde
+    - cron: '30 20 * * 1-5'   # 17:30 BRT — pré-fechamento
+    - cron: '0 21 * * 1-5'    # 18:00 BRT — fechamento
+    - cron: '0 20 * * 5'      # 17:00 BRT — WBR prep (sextas)
 
   workflow_dispatch:
     inputs:
@@ -18,20 +15,27 @@ on:
         description: 'Job para disparar manualmente'
         required: true
         type: choice
-        options:
-          - manha
-          - tarde
-          - pre-fechamento
-          - fechamento
-          - wbr-prep
-          - ping
+        options: [manha, tarde, pre-fechamento, fechamento, wbr-prep]
 
 jobs:
-  dispatch:
+  run:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Determinar job pelo cron
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ hashFiles('requirements.txt') }}
+
+      - run: pip install -r requirements.txt
+
+      - name: Determinar job
         id: job
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -44,21 +48,13 @@ jobs:
             echo "name=pre-fechamento" >> $GITHUB_OUTPUT
           elif [ "${{ github.event.schedule }}" = "0 21 * * 1-5" ]; then
             echo "name=fechamento" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.schedule }}" = "0 20 * * 5" ]; then
-            echo "name=wbr-prep" >> $GITHUB_OUTPUT
           else
-            echo "name=ping" >> $GITHUB_OUTPUT
+            echo "name=wbr-prep" >> $GITHUB_OUTPUT
           fi
 
-      - name: Ping keep-alive
-        if: steps.job.outputs.name == 'ping'
-        run: |
-          curl -sf "${{ secrets.RENDER_URL }}/health" || echo "serviço dormindo, acordando..."
-
-      - name: Disparar job
-        if: steps.job.outputs.name != 'ping'
-        run: |
-          curl -sf -X POST \
-            -H "Authorization: Bearer ${{ secrets.INTERNAL_SECRET }}" \
-            "${{ secrets.RENDER_URL }}/internal/job/${{ steps.job.outputs.name }}" \
-            | cat
+      - name: Executar job
+        env:
+          CLICKUP_TOKEN: ${{ secrets.CLICKUP_TOKEN }}
+          ZAPI_INSTANCE: ${{ secrets.ZAPI_INSTANCE }}
+          ZAPI_TOKEN: ${{ secrets.ZAPI_TOKEN }}
+        run: python run_job.py ${{ steps.job.outputs.name }}
