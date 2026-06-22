@@ -1,5 +1,5 @@
 {
-  "atualizado_em": "21/06/2026 23:59",
+  "atualizado_em": "22/06/2026 04:14",
   "saude_geral": {
     "pct": 0,
     "status": "red"
@@ -60,36 +60,6 @@
       "dia": "Seg",
       "criadas": 0,
       "concluidas": 0
-    },
-    {
-      "dia": "Ter",
-      "criadas": 0,
-      "concluidas": 0
-    },
-    {
-      "dia": "Qua",
-      "criadas": 0,
-      "concluidas": 0
-    },
-    {
-      "dia": "Qui",
-      "criadas": 0,
-      "concluidas": 0
-    },
-    {
-      "dia": "Sex",
-      "criadas": 0,
-      "concluidas": 0
-    },
-    {
-      "dia": "Sáb",
-      "criadas": 0,
-      "concluidas": 0
-    },
-    {
-      "dia": "Dom",
-      "criadas": 7,
-      "concluidas": 1
     }
   ],
   "alertas": {
