@@ -1,5 +1,5 @@
 {
-  "atualizado_em": "23/06/2026 04:32",
+  "atualizado_em": "23/06/2026 08:05",
   "saude_geral": {
     "pct": 0,
     "status": "red"
@@ -69,7 +69,7 @@
   ],
   "alertas": {
     "entregas_7_dias": 0,
-    "projetos_sem_atualizacao": 0,
+    "projetos_sem_atualizacao": 6,
     "bloqueadas_2_dias": 0,
     "wip_medio": 0.0,
     "clientes_sem_contato": 0
