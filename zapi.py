@@ -1,3 +1,4 @@
+import os
 import requests
 from config import ZAPI_BASE_URL, ZAPI_INSTANCE, ZAPI_TOKEN
 
@@ -7,17 +8,21 @@ def _zapi_disponivel() -> bool:
 
 
 def enviar_mensagem(numero: str, texto: str) -> bool:
-    """Envia mensagem de texto via Z-API. Retorna True se enviou."""
     if not _zapi_disponivel():
-        # Modo de desenvolvimento: só printa no terminal
         print(f"\n[Z-API STUB] Para {numero}:\n{texto}\n{'─'*50}")
         return True
 
     try:
+        headers = {"Content-Type": "application/json"}
+        client_token = os.getenv("ZAPI_CLIENT_TOKEN", "")
+        if client_token:
+            headers["Client-Token"] = client_token
+
         r = requests.post(
             f"{ZAPI_BASE_URL}/send-text",
+            headers=headers,
             json={"phone": numero, "message": texto},
-            timeout=10,
+            timeout=15,
         )
         r.raise_for_status()
         return True
@@ -27,7 +32,6 @@ def enviar_mensagem(numero: str, texto: str) -> bool:
 
 
 def enviar_para_todos(membros: dict, texto_fn) -> None:
-    """Envia mensagem para todos os membros. texto_fn recebe o membro e retorna o texto."""
     for nome, dados in membros.items():
         texto = texto_fn(nome, dados)
         enviar_mensagem(dados["whatsapp"], texto)

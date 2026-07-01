@@ -1,9 +1,17 @@
 import schedule
 import time
 import logging
-from config import MEMBERS, HORARIO_MANHA, HORARIO_TARDE, HORARIO_PRE_FECHAMENTO, HORARIO_FECHAMENTO, HORARIO_WBR_PREP
-from clickup import get_tasks_hoje
-from messages import msg_manha, msg_tarde, msg_pre_fechamento, msg_wbr_prep, msg_fechamento
+from config import (
+    MEMBERS, TEST_MODE, TEST_WHATSAPP,
+    HORARIO_KICKOFF, HORARIO_DAILY, HORARIO_CHECKIN,
+    HORARIO_PRE_FECHAMENTO, HORARIO_FECHAMENTO, HORARIO_RETROSPECTIVA,
+    HORARIO_WBR_PREP,
+)
+from clickup import get_tasks_socios, criar_relatorio_daily
+from messages import (
+    msg_kickoff, msg_daily, msg_checkin,
+    msg_pre_fechamento, msg_fechamento, msg_retrospectiva, msg_wbr_prep,
+)
 from zapi import enviar_mensagem
 from state import set_aguardando_fechamento
 
@@ -11,90 +19,121 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger(__name__)
 
 
-def job_manha():
-    log.info("Disparando agenda da manhã...")
-    for nome, dados in MEMBERS.items():
+def _membros_ativos() -> dict:
+    if TEST_MODE:
+        return {k: v for k, v in MEMBERS.items() if v["whatsapp"] == TEST_WHATSAPP}
+    return MEMBERS
+
+
+def job_kickoff():
+    log.info("Disparando kickoff semanal (segunda 08h)...")
+    for nome, dados in _membros_ativos().items():
         try:
-            tarefas = get_tasks_hoje(dados["clickup_id"])
-            texto = msg_manha(nome, tarefas)
-            enviar_mensagem(dados["whatsapp"], texto)
-            log.info(f"  Manhã enviada para {nome}")
+            tarefas = get_tasks_socios(dados["lista_id"])
+            enviar_mensagem(dados["whatsapp"], msg_kickoff(nome, tarefas))
+            log.info(f"  Kickoff enviado para {nome}")
         except Exception as e:
-            log.error(f"  Erro ao enviar manhã para {nome}: {e}")
+            log.error(f"  Erro kickoff para {nome}: {e}")
 
 
-def job_tarde():
-    log.info("Disparando cobrança da tarde...")
-    for nome, dados in MEMBERS.items():
+def job_daily():
+    log.info("Disparando daily (08h30)...")
+    for nome, dados in _membros_ativos().items():
         try:
-            tarefas = get_tasks_hoje(dados["clickup_id"])
-            pendentes = tarefas.get("todas_pendentes", [])
-            if not pendentes:
-                log.info(f"  {nome} sem pendências — não enviando tarde")
+            tarefas = get_tasks_socios(dados["lista_id"])
+            enviar_mensagem(dados["whatsapp"], msg_daily(nome, tarefas))
+            log.info(f"  Daily enviada para {nome}")
+        except Exception as e:
+            log.error(f"  Erro daily para {nome}: {e}")
+
+
+def job_checkin():
+    log.info("Disparando check-in (13h)...")
+    for nome, dados in _membros_ativos().items():
+        try:
+            tarefas = get_tasks_socios(dados["lista_id"])
+            if not tarefas["todas_pendentes"]:
+                log.info(f"  {nome} sem pendências — checkin ignorado")
                 continue
-            texto = msg_tarde(nome, tarefas)
-            enviar_mensagem(dados["whatsapp"], texto)
-            log.info(f"  Tarde enviada para {nome}")
+            enviar_mensagem(dados["whatsapp"], msg_checkin(nome, tarefas))
+            log.info(f"  Checkin enviado para {nome}")
         except Exception as e:
-            log.error(f"  Erro ao enviar tarde para {nome}: {e}")
-
-
-def job_fechamento():
-    log.info("Disparando fechamento do dia...")
-    for nome, dados in MEMBERS.items():
-        try:
-            tarefas = get_tasks_hoje(dados["clickup_id"])
-            concluidas = tarefas.get("concluidas", [])
-            nao_concluidas = tarefas.get("todas_pendentes", [])
-
-            # Salva estado: aguardando resposta do WhatsApp
-            set_aguardando_fechamento(
-                whatsapp=dados["whatsapp"],
-                concluidas=[{"name": t["name"], "id": t["id"]} for t in concluidas],
-                nao_concluidas=[{"name": t["name"], "id": t["id"]} for t in nao_concluidas],
-            )
-
-            texto = msg_fechamento(nome, tarefas)
-            enviar_mensagem(dados["whatsapp"], texto)
-            log.info(f"  Fechamento enviado para {nome}")
-        except Exception as e:
-            log.error(f"  Erro ao enviar fechamento para {nome}: {e}")
+            log.error(f"  Erro checkin para {nome}: {e}")
 
 
 def job_pre_fechamento():
-    log.info("Disparando aviso de pré-fechamento (17:30)...")
-    for nome, dados in MEMBERS.items():
+    log.info("Disparando pré-fechamento (17h30)...")
+    for nome, dados in _membros_ativos().items():
         try:
-            texto = msg_pre_fechamento(nome)
-            enviar_mensagem(dados["whatsapp"], texto)
+            enviar_mensagem(dados["whatsapp"], msg_pre_fechamento(nome))
             log.info(f"  Pré-fechamento enviado para {nome}")
         except Exception as e:
-            log.error(f"  Erro ao enviar pré-fechamento para {nome}: {e}")
+            log.error(f"  Erro pré-fechamento para {nome}: {e}")
+
+
+def job_fechamento():
+    log.info("Disparando fechamento (18h)...")
+    for nome, dados in _membros_ativos().items():
+        try:
+            tarefas = get_tasks_socios(dados["lista_id"])
+            set_aguardando_fechamento(
+                whatsapp=dados["whatsapp"],
+                concluidas=[{"name": t["name"], "id": t["id"]} for t in tarefas["concluidas"]],
+                nao_concluidas=[{"name": t["name"], "id": t["id"]} for t in tarefas["todas_pendentes"]],
+            )
+            enviar_mensagem(dados["whatsapp"], msg_fechamento(nome, tarefas))
+            log.info(f"  Fechamento enviado para {nome}")
+        except Exception as e:
+            log.error(f"  Erro fechamento para {nome}: {e}")
+
+
+def job_retrospectiva():
+    log.info("Disparando retrospectiva (sexta 18h)...")
+    for nome, dados in _membros_ativos().items():
+        try:
+            tarefas = get_tasks_socios(dados["lista_id"])
+            set_aguardando_fechamento(
+                whatsapp=dados["whatsapp"],
+                concluidas=[{"name": t["name"], "id": t["id"]} for t in tarefas["concluidas"]],
+                nao_concluidas=[{"name": t["name"], "id": t["id"]} for t in tarefas["todas_pendentes"]],
+            )
+            enviar_mensagem(dados["whatsapp"], msg_retrospectiva(nome, tarefas))
+            log.info(f"  Retrospectiva enviada para {nome}")
+        except Exception as e:
+            log.error(f"  Erro retrospectiva para {nome}: {e}")
 
 
 def job_wbr_prep():
-    log.info("Disparando aviso de prep WBR (sexta 17:00)...")
-    for nome, dados in MEMBERS.items():
+    log.info("Disparando WBR prep (sexta 17h)...")
+    for nome, dados in _membros_ativos().items():
         try:
-            texto = msg_wbr_prep(nome)
-            enviar_mensagem(dados["whatsapp"], texto)
+            enviar_mensagem(dados["whatsapp"], msg_wbr_prep(nome))
             log.info(f"  WBR prep enviado para {nome}")
         except Exception as e:
-            log.error(f"  Erro ao enviar WBR prep para {nome}: {e}")
+            log.error(f"  Erro WBR prep para {nome}: {e}")
 
 
 def iniciar():
-    schedule.every().day.at(HORARIO_MANHA).do(job_manha)
-    schedule.every().day.at(HORARIO_TARDE).do(job_tarde)
-    schedule.every().day.at(HORARIO_PRE_FECHAMENTO).do(job_pre_fechamento)
-    schedule.every().day.at(HORARIO_FECHAMENTO).do(job_fechamento)
-    schedule.every().friday.at(HORARIO_WBR_PREP).do(job_wbr_prep)
+    schedule.every().monday.at(HORARIO_KICKOFF).do(job_kickoff)
 
-    log.info(
-        f"Scheduler iniciado. Horários: {HORARIO_MANHA} | {HORARIO_TARDE} | "
-        f"{HORARIO_PRE_FECHAMENTO} (pré-fechamento) | {HORARIO_FECHAMENTO} | "
-        f"{HORARIO_WBR_PREP} (sextas, WBR prep)"
-    )
+    schedule.every().tuesday.at(HORARIO_DAILY).do(job_daily)
+    schedule.every().wednesday.at(HORARIO_DAILY).do(job_daily)
+    schedule.every().thursday.at(HORARIO_DAILY).do(job_daily)
+    schedule.every().friday.at(HORARIO_DAILY).do(job_daily)
+
+    schedule.every().day.at(HORARIO_CHECKIN).do(job_checkin)
+    schedule.every().day.at(HORARIO_PRE_FECHAMENTO).do(job_pre_fechamento)
+
+    schedule.every().friday.at(HORARIO_WBR_PREP).do(job_wbr_prep)
+    schedule.every().friday.at(HORARIO_RETROSPECTIVA).do(job_retrospectiva)
+
+    schedule.every().monday.at(HORARIO_FECHAMENTO).do(job_fechamento)
+    schedule.every().tuesday.at(HORARIO_FECHAMENTO).do(job_fechamento)
+    schedule.every().wednesday.at(HORARIO_FECHAMENTO).do(job_fechamento)
+    schedule.every().thursday.at(HORARIO_FECHAMENTO).do(job_fechamento)
+
+    modo = "TESTE (só Victor)" if TEST_MODE else "PRODUÇÃO (todos)"
+    log.info(f"Scheduler iniciado — modo {modo}")
 
     while True:
         schedule.run_pending()
