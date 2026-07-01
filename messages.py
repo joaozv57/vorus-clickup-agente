@@ -62,7 +62,7 @@ def msg_daily(nome: str, tarefas: dict) -> str:
         for t in backlog[:3]:
             linhas.append(f"  • {t['name']}")
 
-    agenda = "\n".join(linhas) if linhas else "Nenhuma tarefa para hoje — quer adicionar algo?"
+    agenda = "\n".join(linhas) if linhas else "Nenhuma tarefa para hoje. Quer adicionar algo?"
 
     return f"Bom dia, {nome}. Daily de hoje ({hoje}):\n\n{agenda}\n\nBora."
 
@@ -87,7 +87,7 @@ def msg_checkin(nome: str, tarefas: dict) -> str:
     msg = f"{nome}, check-in da tarde.\n\nAinda em aberto:\n{lista}"
 
     if bloqueadas:
-        msg += "\n\nTem tarefa bloqueada — precisa de alguma coisa para destravar?"
+        msg += "\n\nTem tarefa bloqueada. Precisa de alguma coisa para destravar?"
     else:
         msg += "\n\nComo está o andamento?"
 
