@@ -5,15 +5,15 @@ def msg_kickoff(nome: str, tarefas: dict) -> str:
     pendentes = tarefas.get("todas_pendentes", [])
     if pendentes:
         linhas = "\n".join([f"  {t['name']}" for t in pendentes[:5]])
-        ctx = f"Ainda tem {len(pendentes)} tarefa(s) em aberto da semana passada:\n{linhas}\n\n"
+        ctx = f"Da semana passada ficaram em aberto:\n{linhas}\n\n"
     else:
         ctx = ""
 
     return (
-        f"Vamos pra mais uma semana, {nome}! 🙏\n\n"
+        f"Vamos pra mais uma semana abencoada 🙏 {nome}!\n\n"
         f"{ctx}"
         "Me manda tudo que quer fazer essa semana. "
-        "Pode mandar a vontade, sem formato — so listar mesmo.\n\n"
+        "Pode mandar a vontade, sem formato, so listar mesmo.\n\n"
         "Eu organizo pra voce."
     )
 
