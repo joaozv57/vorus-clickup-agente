@@ -2,12 +2,15 @@ name: Scheduler Vorus
 
 on:
   schedule:
-    # Todos os horários em UTC. Brasil = UTC-3 (mai-out).
-    - cron: '0 11 * * 1-5'    # 08:00 BRT — manhã
-    - cron: '0 17 * * 1-5'    # 14:00 BRT — tarde
-    - cron: '30 20 * * 1-5'   # 17:30 BRT — pré-fechamento
-    - cron: '0 21 * * 1-5'    # 18:00 BRT — fechamento
-    - cron: '0 20 * * 5'      # 17:00 BRT — WBR prep (sextas)
+    # Todos os horários em UTC. Brasil = UTC-3 (maio-outubro).
+    - cron: '0 14 * * 1'       # 11:00 BRT seg — kickoff semanal
+    - cron: '30 14 * * 2-5'    # 11:30 BRT ter-sex — daily
+    - cron: '0 19 * * 1-5'     # 16:00 BRT seg-sex — checkin
+    - cron: '30 20 * * 1-4'    # 17:30 BRT seg-qui — pré-fechamento
+    - cron: '0 21 * * 1-4'     # 18:00 BRT seg-qui — fechamento
+    - cron: '0 20 * * 5'       # 17:00 BRT sex — WBR prep
+    - cron: '0 21 * * 5'       # 18:00 BRT sex — retrospectiva
+    - cron: '0/30 13-22 * * 1-5' # a cada 30 min das 10h-19h BRT — follow-up
 
   workflow_dispatch:
     inputs:
@@ -15,46 +18,55 @@ on:
         description: 'Job para disparar manualmente'
         required: true
         type: choice
-        options: [manha, tarde, pre-fechamento, fechamento, wbr-prep]
+        options:
+          - kickoff
+          - daily
+          - checkin
+          - pre-fechamento
+          - fechamento
+          - wbr-prep
+          - retrospectiva
+          - followup
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: pip-${{ hashFiles('requirements.txt') }}
-
-      - run: pip install -r requirements.txt
-
       - name: Determinar job
         id: job
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "name=${{ inputs.job }}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.schedule }}" = "0 11 * * 1-5" ]; then
-            echo "name=manha" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.schedule }}" = "0 17 * * 1-5" ]; then
-            echo "name=tarde" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.schedule }}" = "30 20 * * 1-5" ]; then
+          elif [ "${{ github.event.schedule }}" = "0 14 * * 1" ]; then
+            echo "name=kickoff" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "30 14 * * 2-5" ]; then
+            echo "name=daily" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 19 * * 1-5" ]; then
+            echo "name=checkin" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "30 20 * * 1-4" ]; then
             echo "name=pre-fechamento" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.schedule }}" = "0 21 * * 1-5" ]; then
+          elif [ "${{ github.event.schedule }}" = "0 21 * * 1-4" ]; then
             echo "name=fechamento" >> $GITHUB_OUTPUT
-          else
+          elif [ "${{ github.event.schedule }}" = "0 20 * * 5" ]; then
             echo "name=wbr-prep" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 21 * * 5" ]; then
+            echo "name=retrospectiva" >> $GITHUB_OUTPUT
+          else
+            echo "name=followup" >> $GITHUB_OUTPUT
           fi
 
-      - name: Executar job
-        env:
-          CLICKUP_TOKEN: ${{ secrets.CLICKUP_TOKEN }}
-          ZAPI_INSTANCE: ${{ secrets.ZAPI_INSTANCE }}
-          ZAPI_TOKEN: ${{ secrets.ZAPI_TOKEN }}
-        run: python run_job.py ${{ steps.job.outputs.name }}
+      - name: Chamar Render
+        run: |
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${{ secrets.INTERNAL_SECRET }}" \
+            "${{ secrets.RENDER_URL }}/internal/job/${{ steps.job.outputs.name }}" \
+            | tee /tmp/response.json
+          cat /tmp/response.json | python3 -c "
+          import sys, json
+          r = json.load(sys.stdin)
+          if not r.get('ok'):
+            print('ERRO:', r)
+            sys.exit(1)
+          print('Job disparado:', r.get('job'))
+          "

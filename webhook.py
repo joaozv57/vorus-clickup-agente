@@ -1,18 +1,24 @@
-"""
-Recebe mensagens do WhatsApp via Z-API webhook.
-Usa Claude AI para interpretar intenção e age no ClickUp.
-"""
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from config import WHATSAPP_TO_MEMBER, MEMBERS, LIST_IDS, INTERNAL_SECRET
-from clickup import criar_relatorio_daily, get_tasks_socios, criar_tarefa_socios
+from clickup import (
+    criar_relatorio_daily, get_tasks_socios,
+    criar_tarefa_socios, criar_multiplas_tarefas,
+)
 from zapi import enviar_mensagem
-from state import get_estado, limpar_estado
-from claude_ai import interpretar_mensagem
-
+from state import (
+    get_estado, limpar_estado,
+    set_aguardando_prioridades, set_aguardando_aprovacao,
+    set_aguardando_fechamento, get_aguardando_followup,
+)
+from claude_ai import interpretar_mensagem, organizar_prioridades, ajustar_prioridades
+from messages import (
+    msg_prioridades_organizadas, msg_semana_lancada,
+    msg_followup, msg_erro_entendimento,
+)
 from api_dashboard import router as dashboard_router
 
 log = logging.getLogger(__name__)
@@ -39,7 +45,7 @@ async def webhook(request: Request):
     try:
         body = await request.json()
     except Exception:
-        return JSONResponse({"ok": False, "erro": "body inválido"}, status_code=400)
+        return JSONResponse({"ok": False, "erro": "body invalido"}, status_code=400)
 
     numero   = body.get("phone") or body.get("from", "")
     texto    = (body.get("text", {}).get("message") or body.get("body") or "").strip()
@@ -50,23 +56,52 @@ async def webhook(request: Request):
 
     nome, dados = _identificar_membro(numero)
     if not nome:
-        log.warning(f"Número desconhecido: {numero}")
+        log.warning(f"Numero desconhecido: {numero}")
         return JSONResponse({"ok": True})
 
-    log.info(f"Mensagem de {nome}: {texto[:60]}")
+    log.info(f"Mensagem de {nome}: {texto[:80]}")
 
-    estado = get_estado(dados["whatsapp"])
-    estado_tipo = estado.get("tipo") if estado else None
+    estado       = get_estado(dados["whatsapp"])
+    estado_tipo  = estado.get("tipo") if estado else None
+    tarefas_info = get_tasks_socios(dados["lista_id"])
+    pendentes    = tarefas_info.get("todas_pendentes", [])
 
-    tarefas_abertas = get_tasks_socios(dados["lista_id"]).get("todas_pendentes", [])
-    intencao = interpretar_mensagem(texto, estado_atual=estado_tipo, tarefas_abertas=tarefas_abertas)
-    intent = intencao.get("intencao", "outro")
+    # --- Fluxo: aguardando prioridades (apos kickoff) ---
+    if estado_tipo == "aguardando_prioridades":
+        tarefas_org = organizar_prioridades(texto, nome)
+        if not tarefas_org:
+            enviar_mensagem(dados["whatsapp"], "Nao consegui organizar. Manda de novo?")
+            return JSONResponse({"ok": True})
+        set_aguardando_aprovacao(dados["whatsapp"], tarefas_org)
+        enviar_mensagem(dados["whatsapp"], msg_prioridades_organizadas(nome, tarefas_org))
+        return JSONResponse({"ok": True})
 
-    log.info(f"  Intenção: {intent}")
+    # --- Fluxo: aguardando aprovacao da lista organizada ---
+    if estado_tipo == "aguardando_aprovacao":
+        intencao = interpretar_mensagem(texto, estado_atual="aguardando_aprovacao")
+        intent   = intencao.get("intencao", "outro")
 
-    if intent == "resposta_daily" or estado_tipo == "fechamento":
-        concluidas    = estado.get("concluidas", []) if estado else []
-        nao_concluidas = estado.get("nao_concluidas", []) if estado else []
+        if intent == "aprovacao":
+            tarefas = estado.get("tarefas", [])
+            criar_multiplas_tarefas(dados["lista_id"], tarefas, dados["clickup_id"])
+            limpar_estado(dados["whatsapp"])
+            enviar_mensagem(dados["whatsapp"], msg_semana_lancada(nome))
+            return JSONResponse({"ok": True})
+
+        if intent == "pedido_ajuste":
+            tarefas_atuais  = estado.get("tarefas", [])
+            tarefas_ajust   = ajustar_prioridades(texto, tarefas_atuais)
+            set_aguardando_aprovacao(dados["whatsapp"], tarefas_ajust)
+            enviar_mensagem(dados["whatsapp"], msg_prioridades_organizadas(nome, tarefas_ajust))
+            return JSONResponse({"ok": True})
+
+        enviar_mensagem(dados["whatsapp"], "Aprova a lista ou me diz o que ajustar?")
+        return JSONResponse({"ok": True})
+
+    # --- Fluxo: fechamento do dia ---
+    if estado_tipo == "fechamento":
+        concluidas    = estado.get("concluidas", [])
+        nao_concluidas = estado.get("nao_concluidas", [])
         criar_relatorio_daily(
             nome=nome,
             concluidas=concluidas,
@@ -74,38 +109,33 @@ async def webhook(request: Request):
             resposta_wpp=texto,
         )
         limpar_estado(dados["whatsapp"])
-        enviar_mensagem(dados["whatsapp"], f"Daily registrada. Boa noite, {nome}.")
+        enviar_mensagem(dados["whatsapp"], f"Registrado. Boa noite, {nome}!")
         return JSONResponse({"ok": True})
+
+    # --- Intencoes gerais ---
+    intencao = interpretar_mensagem(texto, estado_atual=estado_tipo, tarefas_abertas=pendentes)
+    intent   = intencao.get("intencao", "outro")
+
+    log.info(f"  Intencao: {intent}")
 
     if intent == "criar_tarefa":
         nome_tarefa = intencao.get("nome_tarefa") or texto
         if not nome_tarefa or len(nome_tarefa) < 3:
-            enviar_mensagem(dados["whatsapp"], "Qual o nome da tarefa? Me manda assim:\ntarefa: [descrição]")
+            enviar_mensagem(dados["whatsapp"], "Qual o nome da tarefa?\nManda assim: tarefa: [descricao]")
             return JSONResponse({"ok": True})
-        criar_tarefa_socios(
-            lista_id=dados["lista_id"],
-            nome=nome_tarefa,
-            assignee_id=dados["clickup_id"],
-        )
-        enviar_mensagem(dados["whatsapp"], f"Tarefa criada:\n  • {nome_tarefa}")
+        criar_tarefa_socios(dados["lista_id"], nome_tarefa, dados["clickup_id"])
+        enviar_mensagem(dados["whatsapp"], f"Tarefa criada:\n  {nome_tarefa}")
         return JSONResponse({"ok": True})
 
     if intent == "ver_tarefas":
-        tarefas = get_tasks_socios(dados["lista_id"])
-        pendentes = tarefas["todas_pendentes"]
         if not pendentes:
-            enviar_mensagem(dados["whatsapp"], "Você não tem tarefas abertas.")
+            enviar_mensagem(dados["whatsapp"], "Voce nao tem tarefas abertas.")
         else:
-            linhas = "\n".join([f"  • {t['name']} [{t['status']['status'].upper()}]" for t in pendentes[:15]])
+            linhas = "\n".join([f"  {t['name']} [{t['status']['status'].upper()}]" for t in pendentes[:15]])
             enviar_mensagem(dados["whatsapp"], f"Suas tarefas abertas:\n{linhas}")
         return JSONResponse({"ok": True})
 
-    enviar_mensagem(
-        dados["whatsapp"],
-        "Não entendi. Você pode:\n"
-        "  • Criar tarefa: 'tarefa: [descrição]'\n"
-        "  • Ver tarefas: 'minhas tarefas'"
-    )
+    enviar_mensagem(dados["whatsapp"], msg_erro_entendimento())
     return JSONResponse({"ok": True})
 
 
@@ -125,7 +155,8 @@ async def run_job_interno(job_name: str, request: Request):
 
     from scheduler import (
         job_kickoff, job_daily, job_checkin,
-        job_pre_fechamento, job_fechamento, job_retrospectiva, job_wbr_prep,
+        job_pre_fechamento, job_fechamento, job_retrospectiva,
+        job_wbr_prep, job_followup,
     )
     import threading
 
@@ -137,6 +168,7 @@ async def run_job_interno(job_name: str, request: Request):
         "fechamento":     job_fechamento,
         "retrospectiva":  job_retrospectiva,
         "wbr-prep":       job_wbr_prep,
+        "followup":       job_followup,
     }
 
     fn = jobs.get(job_name)

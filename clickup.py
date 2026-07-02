@@ -55,6 +55,23 @@ def criar_tarefa_socios(lista_id: str, nome: str, assignee_id: str) -> dict:
     })
 
 
+def criar_multiplas_tarefas(lista_id: str, tarefas: list, assignee_id: str) -> list:
+    """Cria várias tarefas de uma vez. tarefas = [{nome, prazo}]"""
+    criadas = []
+    for t in tarefas:
+        try:
+            r = _post(f"/list/{lista_id}/task", {
+                "name": t.get("nome", t.get("name", "")),
+                "assignees": [int(assignee_id)] if assignee_id else [],
+                "status": "planning",
+            })
+            criadas.append(r)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Erro ao criar tarefa '{t}': {e}")
+    return criadas
+
+
 def get_tasks_hoje(member_clickup_id: str) -> dict:
     hoje_ts = int(datetime.combine(date.today(), datetime.min.time()).timestamp() * 1000)
     amanha_ts = hoje_ts + 86400000

@@ -13,7 +13,8 @@ from messages import (
     msg_pre_fechamento, msg_fechamento, msg_retrospectiva, msg_wbr_prep,
 )
 from zapi import enviar_mensagem
-from state import set_aguardando_fechamento
+from state import set_aguardando_prioridades, set_aguardando_fechamento, get_aguardando_followup
+from messages import msg_followup
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -26,14 +27,27 @@ def _membros_ativos() -> dict:
 
 
 def job_kickoff():
-    log.info("Disparando kickoff semanal (segunda 08h)...")
+    log.info("Disparando kickoff semanal (segunda 11h)...")
     for nome, dados in _membros_ativos().items():
         try:
             tarefas = get_tasks_socios(dados["lista_id"])
             enviar_mensagem(dados["whatsapp"], msg_kickoff(nome, tarefas))
+            set_aguardando_prioridades(dados["whatsapp"])
             log.info(f"  Kickoff enviado para {nome}")
         except Exception as e:
             log.error(f"  Erro kickoff para {nome}: {e}")
+
+
+def job_followup():
+    log.info("Verificando follow-ups pendentes...")
+    from config import WHATSAPP_TO_MEMBER
+    aguardando = get_aguardando_followup()
+    for wpp in aguardando:
+        try:
+            enviar_mensagem(wpp, msg_followup())
+            log.info(f"  Follow-up enviado para {wpp}")
+        except Exception as e:
+            log.error(f"  Erro follow-up para {wpp}: {e}")
 
 
 def job_daily():
