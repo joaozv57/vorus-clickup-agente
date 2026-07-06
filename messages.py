@@ -161,7 +161,7 @@ def msg_sugerir_reagendamento(nome: str, task_name: str, sugestoes: list) -> str
         f"{task_name} não foi feito hoje.\n\n"
         f"Encontrei esses horários disponíveis:\n\n"
         f"{linhas}\n\n"
-        "Qual prefere? Responde com o número."
+        "Qual prefere? Responde com o número (1 a 5)."
     )
 
 
@@ -185,7 +185,7 @@ def msg_tarefa_cancelada(task_name: str, sugestoes: list = None) -> str:
         f"{task_name} cancelada.\n\n"
         f"Quer remarcar? Encontrei esses horários:\n\n"
         f"{linhas}\n\n"
-        "Qual prefere? Responde com o número."
+        "Qual prefere? Responde com o número (1 a 5)."
     )
 
 

@@ -123,7 +123,7 @@ async def webhook(request: Request):
         task_name  = estado.get("task_name", "Tarefa")
         escolha    = texto.strip()
         idx        = None
-        if escolha in ("1", "2", "3"):
+        if escolha in ("1", "2", "3", "4", "5"):
             idx = int(escolha) - 1
         elif "primeiro" in escolha.lower() or "opção 1" in escolha.lower():
             idx = 0
@@ -131,6 +131,10 @@ async def webhook(request: Request):
             idx = 1
         elif "terceiro" in escolha.lower() or "opção 3" in escolha.lower():
             idx = 2
+        elif "quarto" in escolha.lower() or "opção 4" in escolha.lower():
+            idx = 3
+        elif "quinto" in escolha.lower() or "opção 5" in escolha.lower():
+            idx = 4
 
         if idx is not None and idx < len(sugestoes):
             slot = sugestoes[idx]
@@ -139,7 +143,7 @@ async def webhook(request: Request):
             data_fmt = slot["data"].strftime("%d/%m")
             enviar_mensagem(dados["whatsapp"], msg_tarefa_reagendada(task_name, data_fmt, slot["inicio"]))
         else:
-            enviar_mensagem(dados["whatsapp"], "Responde com 1, 2 ou 3 para escolher o horário.")
+            enviar_mensagem(dados["whatsapp"], "Responde com 1, 2, 3, 4 ou 5 para escolher o horário.")
         return JSONResponse({"ok": True})
 
     # --- Intencoes gerais ---

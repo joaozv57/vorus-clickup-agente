@@ -262,34 +262,24 @@ def get_tasks_dia(lista_id: str, dia: date = None) -> list:
 
 def encontrar_slots_livres(lista_id: str, duracao_min: int, janelas_bloqueadas: dict = None, dias_frente: int = 7) -> list:
     """
-    Encontra até 3 slots livres nos próximos dias respeitando janelas bloqueadas do membro
-    e tarefas já agendadas. Retorna lista de {data, inicio, fim, start_ts, due_ts}.
+    Encontra até 5 slots livres priorizando a semana corrente.
+    Busca múltiplos slots por dia. Só vai para semana seguinte se a atual não completar 5.
     janelas_bloqueadas: dict do perfil do membro (weekday → [(h_i, m_i, h_f, m_f)]).
     """
     from config import HORARIO_TRABALHO_INICIO, HORARIO_TRABALHO_FIM
 
-    bloqueios = janelas_bloqueadas or {}
-    hoje      = date.today()
-    dia_ini   = HORARIO_TRABALHO_INICIO[0] * 60 + HORARIO_TRABALHO_INICIO[1]
-    dia_fim   = HORARIO_TRABALHO_FIM[0]    * 60 + HORARIO_TRABALHO_FIM[1]
-    sugestoes = []
+    def _arredondar_hora(minutos: int) -> int:
+        h = minutos // 60
+        return (h + 1) * 60 if minutos % 60 != 0 else minutos
 
-    for delta in range(1, dias_frente + 1):
-        dia = hoje + timedelta(days=delta)
-        if dia.weekday() >= 5:
-            continue
-
+    def _slots_do_dia(dia: date) -> list:
         tarefas = get_tasks_dia(lista_id, dia)
-
-        # Intervalos ocupados em minutos desde meia-noite
         ocupados = []
-        for h_i, m_i, h_f, m_f in bloqueios.get(dia.weekday(), []):
+        for h_i, m_i, h_f, m_f in (janelas_bloqueadas or {}).get(dia.weekday(), []):
             ocupados.append((h_i * 60 + m_i, h_f * 60 + m_f))
         for t in tarefas:
             s, e = t["start_dt"], t["due_dt"]
             ocupados.append((s.hour * 60 + s.minute, e.hour * 60 + e.minute))
-
-        # Mesclar intervalos sobrepostos
         ocupados.sort()
         merged = []
         for ini, fim in ocupados:
@@ -298,39 +288,48 @@ def encontrar_slots_livres(lista_id: str, duracao_min: int, janelas_bloqueadas: 
             else:
                 merged.append([ini, fim])
 
-        def _arredondar_hora(minutos: int) -> int:
-            """Arredonda para a próxima hora cheia."""
-            h = minutos // 60
-            return (h + 1) * 60 if minutos % 60 != 0 else minutos
+        dia_ini = _arredondar_hora(HORARIO_TRABALHO_INICIO[0] * 60 + HORARIO_TRABALHO_INICIO[1])
+        dia_fim = HORARIO_TRABALHO_FIM[0] * 60 + HORARIO_TRABALHO_FIM[1]
+        cursor  = dia_ini
+        slots   = []
 
-        # Primeiro slot livre >= duracao_min (sempre em hora cheia)
-        cursor = _arredondar_hora(dia_ini)
-        slot = None
-        for ini_ocup, fim_ocup in merged:
-            if cursor + duracao_min <= ini_ocup:
-                slot = cursor
-                break
-            cursor = _arredondar_hora(max(cursor, fim_ocup))
-        if slot is None and cursor + duracao_min <= dia_fim:
-            slot = cursor
+        while cursor + duracao_min <= dia_fim:
+            bloqueado = False
+            for ini_ocup, fim_ocup in merged:
+                if cursor < fim_ocup and cursor + duracao_min > ini_ocup:
+                    cursor = _arredondar_hora(fim_ocup)
+                    bloqueado = True
+                    break
+            if not bloqueado:
+                h_i, m_i = divmod(cursor, 60)
+                h_f, m_f = divmod(cursor + duracao_min, 60)
+                ini_str  = f"{h_i:02d}:{m_i:02d}"
+                fim_str  = f"{h_f:02d}:{m_f:02d}"
+                slots.append({
+                    "data":     dia,
+                    "inicio":   ini_str,
+                    "fim":      fim_str,
+                    "start_ts": int(datetime.strptime(f"{dia} {ini_str}", "%Y-%m-%d %H:%M")
+                                    .replace(tzinfo=_BRT).timestamp() * 1000),
+                    "due_ts":   int(datetime.strptime(f"{dia} {fim_str}", "%Y-%m-%d %H:%M")
+                                    .replace(tzinfo=_BRT).timestamp() * 1000),
+                })
+                cursor += duracao_min  # próximo slot começa após esse
+        return slots
 
-        if slot is not None:
-            h_i, m_i = divmod(slot, 60)
-            h_f, m_f = divmod(slot + duracao_min, 60)
-            ini_str = f"{h_i:02d}:{m_i:02d}"
-            fim_str = f"{h_f:02d}:{m_f:02d}"
-            sugestoes.append({
-                "data":     dia,
-                "inicio":   ini_str,
-                "fim":      fim_str,
-                "start_ts": int(datetime.strptime(f"{dia} {ini_str}", "%Y-%m-%d %H:%M")
-                                .replace(tzinfo=_BRT).timestamp() * 1000),
-                "due_ts":   int(datetime.strptime(f"{dia} {fim_str}", "%Y-%m-%d %H:%M")
-                                .replace(tzinfo=_BRT).timestamp() * 1000),
-            })
+    hoje      = date.today()
+    sugestoes = []
 
-        if len(sugestoes) >= 3:
+    for delta in range(0, 14):
+        if len(sugestoes) >= 5:
             break
+        dia = hoje + timedelta(days=delta)
+        if dia.weekday() >= 5:
+            continue
+        for slot in _slots_do_dia(dia)[:2]:  # máx 2 por dia
+            sugestoes.append(slot)
+            if len(sugestoes) >= 5:
+                break
 
     return sugestoes
 
