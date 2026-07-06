@@ -52,8 +52,8 @@ MEMBERS = {
         "lista_id":   SOCIOS_LIST_IDS["ton"],
         # Janelas bloqueadas fixas: weekday (0=seg…6=dom) → [(h_ini, m_ini, h_fim, m_fim)]
         "janelas_bloqueadas": {
-            1: [(11, 0, 18, 0)],    # Terça-feira
-            2: [(11, 0, 18, 0)],    # Quarta-feira
+            1: [(0, 0, 23, 59)],    # Terça-feira — dia todo bloqueado
+            2: [(0, 0, 23, 59)],    # Quarta-feira — dia todo bloqueado
             3: [(17, 0, 18, 30)],   # Quinta-feira
             4: [(15, 0, 18, 0)],    # Sexta-feira
         },
