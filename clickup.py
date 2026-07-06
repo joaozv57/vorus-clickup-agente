@@ -326,7 +326,15 @@ def encontrar_slots_livres(lista_id: str, duracao_min: int, janelas_bloqueadas: 
         dia = hoje + timedelta(days=delta)
         if dia.weekday() >= 5:
             continue
-        for slot in _slots_do_dia(dia)[:2]:  # máx 2 por dia
+        todos = _slots_do_dia(dia)
+        manha = [s for s in todos if int(s["inicio"].split(":")[0]) < 13]
+        tarde = [s for s in todos if int(s["inicio"].split(":")[0]) >= 13]
+        candidatos = []
+        if manha:
+            candidatos.append(manha[0])
+        if tarde:
+            candidatos.append(tarde[0])
+        for slot in candidatos:
             sugestoes.append(slot)
             if len(sugestoes) >= 5:
                 break
