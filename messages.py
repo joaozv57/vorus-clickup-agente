@@ -53,7 +53,7 @@ def msg_checkin(nome: str, tarefas_dia: list) -> str:
     if not manha:
         bloco_manha = f"Checkin rápido, {nome}. Nada programado para a manhã."
     else:
-        corpo = _bloco(manha)
+        corpo = _bloco(manha, com_hora=True)
         bloco_manha = (
             f"Checkin rápido, {nome}.\n\n"
             f"Me atualiza sobre essas tarefas:\n\n"
@@ -64,7 +64,7 @@ def msg_checkin(nome: str, tarefas_dia: list) -> str:
     if not tarde:
         return bloco_manha
 
-    corpo_tarde = _bloco(tarde)
+    corpo_tarde = _bloco(tarde, com_hora=True)
     return (
         f"{bloco_manha}\n\n"
         f"---\n\n"
@@ -83,7 +83,7 @@ def msg_pre_fechamento(nome: str, tarefas_dia: list) -> str:
     ]
     if not tarde:
         return f"{nome}, daqui a pouco fechamos o dia. Boa tarde!"
-    corpo = _bloco(tarde)
+    corpo = _bloco(tarde, com_hora=True)
     return (
         f"{nome}, daqui a pouco fechamos o dia.\n\n"
         f"Como ficou a tarde?\n\n"
