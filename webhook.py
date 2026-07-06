@@ -17,7 +17,7 @@ from state import (
     set_aguardando_fechamento, set_aguardando_reagendamento,
     get_aguardando_followup,
 )
-from claude_ai import interpretar_mensagem, organizar_prioridades, ajustar_prioridades
+from claude_ai import interpretar_mensagem, organizar_prioridades, ajustar_prioridades, interpretar_resposta_checkin
 from messages import (
     msg_prioridades_organizadas, msg_semana_lancada,
     msg_followup, msg_erro_entendimento,
@@ -69,6 +69,64 @@ async def webhook(request: Request):
     estado_tipo  = estado.get("tipo") if estado else None
     tarefas_info = get_tasks_socios(dados["lista_id"])
     pendentes    = tarefas_info.get("todas_pendentes", [])
+
+    # --- Fluxo: resposta ao checkin 13h ---
+    if estado_tipo == "checkin":
+        tarefas_manha = estado.get("tarefas_manha", [])
+        tarefas_tarde = estado.get("tarefas_tarde", [])
+        resultado = interpretar_resposta_checkin(texto, tarefas_manha, tarefas_tarde)
+
+        canceladas = resultado.get("canceladas", [])
+        bloqueadas = resultado.get("bloqueadas", [])
+        positivo   = resultado.get("positivo", True)
+        tarde_ok   = resultado.get("tarde_ok", True)
+
+        limpar_estado(dados["whatsapp"])
+
+        # processa cada cancelamento
+        reagendamentos = []
+        for nome_cancelada in canceladas:
+            tarefa = buscar_tarefa_por_nome(dados["lista_id"], nome_cancelada)
+            if not tarefa:
+                continue
+            cancelar_tarefa(tarefa["id"])
+            start_raw = tarefa.get("start_date")
+            due_raw   = tarefa.get("due_date")
+            duracao   = 60
+            if start_raw and due_raw:
+                duracao = max(30, (int(due_raw) - int(start_raw)) // 60000)
+            janelas   = dados.get("janelas_bloqueadas", {})
+            sugestoes = encontrar_slots_livres(dados["lista_id"], duracao, janelas)
+            reagendamentos.append((tarefa["name"], sugestoes))
+
+        # monta resposta
+        partes = []
+        if positivo and not canceladas and not bloqueadas:
+            partes.append("Certo, Ton. Boa tarde!")
+        if canceladas and not reagendamentos:
+            nomes = ", ".join(canceladas)
+            partes.append(f"Cancelei: {nomes}.")
+        if bloqueadas:
+            nomes_bl = ", ".join(bloqueadas)
+            partes.append(f"Anotei como bloqueado: {nomes_bl}.")
+        if not tarde_ok:
+            partes.append("Me conta o que mudou na agenda da tarde.")
+
+        if partes:
+            enviar_mensagem(dados["whatsapp"], "\n".join(partes))
+
+        # envia reagendamento para o primeiro cancelamento com sugestões
+        if reagendamentos:
+            task_name, sugestoes = reagendamentos[0]
+            if len(reagendamentos) > 1:
+                outros = ", ".join(n for n, _ in reagendamentos[1:])
+                enviar_mensagem(dados["whatsapp"], f"Cancelei também: {outros}.")
+            tarefa_obj = buscar_tarefa_por_nome(dados["lista_id"], task_name)
+            task_id = tarefa_obj["id"] if tarefa_obj else ""
+            set_aguardando_reagendamento(dados["whatsapp"], task_id, task_name, dados["lista_id"], sugestoes)
+            enviar_mensagem(dados["whatsapp"], msg_tarefa_cancelada(task_name, sugestoes))
+
+        return JSONResponse({"ok": True})
 
     # --- Fluxo: aguardando prioridades (apos kickoff) ---
     if estado_tipo == "aguardando_prioridades":

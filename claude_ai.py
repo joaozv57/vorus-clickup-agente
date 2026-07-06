@@ -129,6 +129,46 @@ def ajustar_prioridades(texto_ajuste: str, tarefas_atuais: list) -> list:
         return tarefas_atuais
 
 
+def interpretar_resposta_checkin(texto: str, tarefas_manha: list, tarefas_tarde: list) -> dict:
+    """
+    Interpreta resposta livre ao checkin das 13h.
+    Retorna: {canceladas: [nomes], bloqueadas: [nomes], tarde_ok: bool, positivo: bool}
+    """
+    nomes_manha = [t["name"] for t in tarefas_manha]
+    nomes_tarde = [t["name"] for t in tarefas_tarde]
+
+    system = (
+        "Você interpreta respostas de texto livre de um executivo para um checkin de trabalho.\n"
+        "Retorne APENAS JSON válido sem markdown.\n\n"
+        "Analise a mensagem e identifique:\n"
+        "- canceladas: lista de nomes de tarefas que foram canceladas ou não vão acontecer\n"
+        "- bloqueadas: lista de nomes de tarefas que estão travadas por dependência externa\n"
+        "- tarde_ok: true se a agenda da tarde está confirmada, false se há problema\n"
+        "- positivo: true se a mensagem indica que a manhã correu bem de forma geral\n\n"
+        "Se uma tarefa cancelada bater parcialmente com um nome da lista, use o nome exato da lista.\n"
+        "Formato: {\"canceladas\": [...], \"bloqueadas\": [...], \"tarde_ok\": true, \"positivo\": true}"
+    )
+
+    user_msg = (
+        f"Tarefas da manhã: {json.dumps(nomes_manha, ensure_ascii=False)}\n"
+        f"Tarefas da tarde: {json.dumps(nomes_tarde, ensure_ascii=False)}\n\n"
+        f"Resposta do executivo: \"{texto}\""
+    )
+
+    try:
+        client = _get_client()
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            system=system,
+            messages=[{"role": "user", "content": user_msg}],
+        )
+        return json.loads(resp.content[0].text.strip())
+    except Exception as e:
+        log.warning(f"interpretar_resposta_checkin falhou: {e}")
+        return {"canceladas": [], "bloqueadas": [], "tarde_ok": True, "positivo": True}
+
+
 def _fallback_keywords(texto: str, estado_atual: str = None) -> dict:
     t = texto.lower().strip()
     if estado_atual == "fechamento":
