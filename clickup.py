@@ -298,14 +298,19 @@ def encontrar_slots_livres(lista_id: str, duracao_min: int, janelas_bloqueadas: 
             else:
                 merged.append([ini, fim])
 
-        # Primeiro slot livre >= duracao_min
-        cursor = dia_ini
+        def _arredondar_hora(minutos: int) -> int:
+            """Arredonda para a próxima hora cheia."""
+            h = minutos // 60
+            return (h + 1) * 60 if minutos % 60 != 0 else minutos
+
+        # Primeiro slot livre >= duracao_min (sempre em hora cheia)
+        cursor = _arredondar_hora(dia_ini)
         slot = None
         for ini_ocup, fim_ocup in merged:
             if cursor + duracao_min <= ini_ocup:
                 slot = cursor
                 break
-            cursor = max(cursor, fim_ocup)
+            cursor = _arredondar_hora(max(cursor, fim_ocup))
         if slot is None and cursor + duracao_min <= dia_fim:
             slot = cursor
 
