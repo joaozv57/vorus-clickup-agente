@@ -35,6 +35,8 @@ def interpretar_mensagem(texto: str, estado_atual: str = None, tarefas_abertas: 
         "Intencoes possiveis:\n"
         "- criar_tarefa: quer criar uma nova tarefa\n"
         "- ver_tarefas: quer ver suas tarefas abertas\n"
+        "- nao_concluiu_tarefa: diz que nao fez ou nao conseguiu fazer uma tarefa (ex: 'nao fiz X', 'nao consegui X', 'ficou pra amanha X', 'nao terminei X')\n"
+        "- cancelar_tarefa: diz que uma tarefa foi ou sera cancelada (ex: 'X foi cancelada', 'cancela X', 'vou cancelar X', 'precisarei cancelar X', 'nao vai rolar X', 'X nao acontece mais')\n"
         "- resposta_daily: respondendo ao fechamento/daily do dia\n"
         "- aprovacao: aprovando uma lista proposta (ex: 'aprova', 'ok', 'pode criar', 'sim', 'isso ai')\n"
         "- pedido_ajuste: quer ajustar a lista proposta (ex: 'muda X pra quarta', 'tira essa')\n"
@@ -52,7 +54,13 @@ def interpretar_mensagem(texto: str, estado_atual: str = None, tarefas_abertas: 
             system=system,
             messages=[{"role": "user", "content": user_msg}],
         )
-        return json.loads(resp.content[0].text.strip())
+        resultado = json.loads(resp.content[0].text.strip())
+        # se Claude retornou "outro", tenta keywords como segunda chance
+        if resultado.get("intencao") == "outro":
+            fb = _fallback_keywords(texto, estado_atual)
+            if fb.get("intencao") != "outro":
+                return fb
+        return resultado
     except Exception as e:
         log.warning(f"Claude AI falhou, usando fallback: {e}")
         return _fallback_keywords(texto, estado_atual)
@@ -134,4 +142,8 @@ def _fallback_keywords(texto: str, estado_atual: str = None) -> dict:
         return {"intencao": "criar_tarefa", "nome_tarefa": nome, "conteudo": texto}
     if any(p in t for p in ["minhas tarefas", "meu backlog", "o que tenho", "ver tarefas"]):
         return {"intencao": "ver_tarefas", "nome_tarefa": None, "conteudo": texto}
+    if any(p in t for p in ["nao fiz", "não fiz", "nao consegui", "não consegui", "ficou pra amanha", "ficou pra amanhã"]):
+        return {"intencao": "nao_concluiu_tarefa", "nome_tarefa": None, "conteudo": texto}
+    if any(p in t for p in ["cancelad", "cancela", "cancelar", "nao vai rolar", "não vai rolar", "nao acontece", "não acontece"]):
+        return {"intencao": "cancelar_tarefa", "nome_tarefa": None, "conteudo": texto}
     return {"intencao": "outro", "nome_tarefa": None, "conteudo": texto}
