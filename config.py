@@ -17,7 +17,7 @@ SOCIOS_LIST_IDS = {
     "joao":    "901714881248",   # [OPERAÇÕES] João Ribeiro
 }
 
-SOCIOS_STATUSES = ["BACKLOG", "PLANNING", "EM ANDAMENTO", "BLOQUEADO", "CONCLUIDO"]
+SOCIOS_STATUSES = ["backlog(no radar)", "planning(essa semana)", "em andamento(hoje)", "bloqueado", "complete"]
 
 # ── Listas antigas (operação existente — NÃO MEXER) ───────────────────────────
 LIST_IDS = {
@@ -50,6 +50,13 @@ MEMBERS = {
         "whatsapp":   "5511937305357",
         "nome":       "Ton",
         "lista_id":   SOCIOS_LIST_IDS["ton"],
+        # Janelas bloqueadas fixas: weekday (0=seg…6=dom) → [(h_ini, m_ini, h_fim, m_fim)]
+        "janelas_bloqueadas": {
+            1: [(11, 0, 18, 0)],    # Terça-feira
+            2: [(11, 0, 18, 0)],    # Quarta-feira
+            3: [(17, 0, 18, 30)],   # Quinta-feira
+            4: [(15, 0, 18, 0)],    # Sexta-feira
+        },
     },
     "Joao": {
         "clickup_id": os.getenv("JOAO_CLICKUP_ID", ""),
@@ -89,3 +96,6 @@ INTERNAL_SECRET = os.getenv("INTERNAL_SECRET", "dev-secret-local")
 # Modo de teste: mensagens vão apenas para o número abaixo
 TEST_MODE     = os.getenv("TEST_MODE", "true").lower() == "true"
 TEST_WHATSAPP = "5571993633174"  # Victor
+
+HORARIO_TRABALHO_INICIO = (9, 0)
+HORARIO_TRABALHO_FIM    = (18, 30)
