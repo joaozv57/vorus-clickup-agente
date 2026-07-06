@@ -95,7 +95,7 @@ INTERNAL_SECRET = os.getenv("INTERNAL_SECRET", "dev-secret-local")
 
 # Modo de teste: mensagens vão apenas para o número abaixo
 TEST_MODE     = os.getenv("TEST_MODE", "true").lower() == "true"
-TEST_WHATSAPP = "5571993633174"  # Victor
+TEST_WHATSAPP = "5511937305357"  # Ton (único ativo por enquanto)
 
 HORARIO_TRABALHO_INICIO = (9, 0)
 HORARIO_TRABALHO_FIM    = (18, 30)
