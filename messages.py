@@ -45,14 +45,32 @@ def msg_checkin(nome: str, tarefas_dia: list) -> str:
         t for t in tarefas_dia
         if t["due_dt"].hour < 13 or (t["due_dt"].hour == 13 and t["due_dt"].minute == 0)
     ]
+    tarde = [
+        t for t in tarefas_dia
+        if t["due_dt"].hour > 13 or (t["due_dt"].hour == 13 and t["due_dt"].minute > 0)
+    ]
+
     if not manha:
-        return f"Checkin rápido, {nome}. Nada programado para a manhã."
-    corpo = _bloco(manha)
+        bloco_manha = f"Checkin rápido, {nome}. Nada programado para a manhã."
+    else:
+        corpo = _bloco(manha)
+        bloco_manha = (
+            f"Checkin rápido, {nome}.\n\n"
+            f"Me atualiza sobre essas tarefas:\n\n"
+            f"{corpo}\n\n"
+            "O que fechou? O que ficou em aberto?"
+        )
+
+    if not tarde:
+        return bloco_manha
+
+    corpo_tarde = _bloco(tarde)
     return (
-        f"Checkin rápido, {nome}.\n\n"
-        f"Me atualiza sobre essas tarefas:\n\n"
-        f"{corpo}\n\n"
-        "O que fechou? O que ficou em aberto?"
+        f"{bloco_manha}\n\n"
+        f"---\n\n"
+        f"Confirmando a tarde:\n\n"
+        f"{corpo_tarde}\n\n"
+        "Tá tudo certo ou tem algo cancelado?"
     )
 
 
