@@ -274,7 +274,7 @@ def encontrar_slots_livres(lista_id: str, duracao_min: int, janelas_bloqueadas: 
 
     def _slots_do_dia(dia: date) -> list:
         tarefas = get_tasks_dia(lista_id, dia)
-        ocupados = []
+        ocupados = [(12 * 60, 13 * 60)]  # almoço sempre bloqueado
         for h_i, m_i, h_f, m_f in (janelas_bloqueadas or {}).get(dia.weekday(), []):
             ocupados.append((h_i * 60 + m_i, h_f * 60 + m_f))
         for t in tarefas:
