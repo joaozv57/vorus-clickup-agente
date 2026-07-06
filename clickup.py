@@ -320,7 +320,7 @@ def encontrar_slots_livres(lista_id: str, duracao_min: int, janelas_bloqueadas: 
     hoje      = date.today()
     sugestoes = []
 
-    for delta in range(0, 14):
+    for delta in range(1, 14):
         if len(sugestoes) >= 5:
             break
         dia = hoje + timedelta(days=delta)
