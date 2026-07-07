@@ -2,10 +2,10 @@ name: Scheduler Vorus
 
 on:
   schedule:
-    # Todos os horários em UTC. Brasil = UTC-3 (maio-outubro).
-    - cron: '0 14 * * 1'       # 11:00 BRT seg — kickoff semanal
-    - cron: '30 14 * * 2-5'    # 11:30 BRT ter-sex — daily
-    - cron: '0 19 * * 1-5'     # 16:00 BRT seg-sex — checkin
+    # Todos os horários em UTC. Brasil = UTC-3.
+    - cron: '0 11 * * 1'       # 08:00 BRT seg — kickoff semanal
+    - cron: '30 11 * * 2-5'    # 08:30 BRT ter-sex — daily
+    - cron: '0 16 * * 1-5'     # 13:00 BRT seg-sex — checkin
     - cron: '30 20 * * 1-4'    # 17:30 BRT seg-qui — pré-fechamento
     - cron: '0 21 * * 1-4'     # 18:00 BRT seg-qui — fechamento
     - cron: '0 20 * * 5'       # 17:00 BRT sex — WBR prep
@@ -38,11 +38,11 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "name=${{ inputs.job }}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.schedule }}" = "0 14 * * 1" ]; then
+          elif [ "${{ github.event.schedule }}" = "0 11 * * 1" ]; then
             echo "name=kickoff" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.schedule }}" = "30 14 * * 2-5" ]; then
+          elif [ "${{ github.event.schedule }}" = "30 11 * * 2-5" ]; then
             echo "name=daily" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.schedule }}" = "0 19 * * 1-5" ]; then
+          elif [ "${{ github.event.schedule }}" = "0 16 * * 1-5" ]; then
             echo "name=checkin" >> $GITHUB_OUTPUT
           elif [ "${{ github.event.schedule }}" = "30 20 * * 1-4" ]; then
             echo "name=pre-fechamento" >> $GITHUB_OUTPUT
