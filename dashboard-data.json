@@ -1,5 +1,5 @@
 {
-  "atualizado_em": "19/07/2026 23:02",
+  "atualizado_em": "20/07/2026 00:05",
   "saude_geral": {
     "pct": 0,
     "status": "red"
@@ -58,36 +58,6 @@
   "tendencia_semanal": [
     {
       "dia": "Seg",
-      "criadas": 0,
-      "concluidas": 0
-    },
-    {
-      "dia": "Ter",
-      "criadas": 0,
-      "concluidas": 0
-    },
-    {
-      "dia": "Qua",
-      "criadas": 0,
-      "concluidas": 0
-    },
-    {
-      "dia": "Qui",
-      "criadas": 0,
-      "concluidas": 0
-    },
-    {
-      "dia": "Sex",
-      "criadas": 0,
-      "concluidas": 0
-    },
-    {
-      "dia": "Sáb",
-      "criadas": 0,
-      "concluidas": 0
-    },
-    {
-      "dia": "Dom",
       "criadas": 0,
       "concluidas": 0
     }
