@@ -1,5 +1,5 @@
 {
-  "atualizado_em": "10/08/2026 23:24",
+  "atualizado_em": "10/08/2026 23:56",
   "saude_geral": {
     "pct": 0,
     "status": "red"
@@ -33,16 +33,16 @@
   "bloqueadas": [],
   "por_area": {
     "Marketing": {
-      "total": 3,
+      "total": 0,
       "concluidas": 0
     },
     "Vendas": {
-      "total": 2,
+      "total": 0,
       "concluidas": 0
     },
     "Ops": {
-      "total": 2,
-      "concluidas": 1
+      "total": 0,
+      "concluidas": 0
     },
     "Rituais": {
       "total": 0,
@@ -50,10 +50,10 @@
     }
   },
   "distribuicao": {
-    "concluidas": 1,
-    "a_fazer": 2,
-    "em_andamento": 3,
-    "bloqueadas": 1
+    "concluidas": 0,
+    "a_fazer": 0,
+    "em_andamento": 0,
+    "bloqueadas": 0
   },
   "tendencia_semanal": [
     {
@@ -64,7 +64,7 @@
   ],
   "alertas": {
     "entregas_7_dias": 0,
-    "projetos_sem_atualizacao": 6,
+    "projetos_sem_atualizacao": 0,
     "bloqueadas_2_dias": 0,
     "wip_medio": 0.0,
     "clientes_sem_contato": 0
