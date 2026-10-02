@@ -1,5 +1,5 @@
 {
-  "atualizado_em": "01/10/2026 23:32",
+  "atualizado_em": "02/10/2026 02:32",
   "saude_geral": {
     "pct": 0,
     "status": "red"
@@ -73,6 +73,11 @@
     },
     {
       "dia": "Qui",
+      "criadas": 0,
+      "concluidas": 0
+    },
+    {
+      "dia": "Sex",
       "criadas": 0,
       "concluidas": 0
     }
