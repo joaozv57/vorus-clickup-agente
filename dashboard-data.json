@@ -1,5 +1,5 @@
 {
-  "atualizado_em": "23/11/2026 21:43",
+  "atualizado_em": "24/11/2026 05:33",
   "saude_geral": {
     "pct": 0,
     "status": "red"
@@ -58,6 +58,11 @@
   "tendencia_semanal": [
     {
       "dia": "Seg",
+      "criadas": 0,
+      "concluidas": 0
+    },
+    {
+      "dia": "Ter",
       "criadas": 0,
       "concluidas": 0
     }
